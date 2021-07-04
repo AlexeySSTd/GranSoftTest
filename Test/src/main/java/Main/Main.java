@@ -21,8 +21,9 @@ import javax.swing.SwingWorker;
 public class Main {
   static JFrame Frame;
   static JButton[] NumbersButtons;
-  static int sleep; 
-  static double height;
+  static int sleep;
+  static double heightWindow;
+  static boolean sort = false;
   public static void main(String[] argv) {
     Frame = new JIntoFrame();
   }
@@ -40,8 +41,8 @@ public class Main {
       Label.setAlignmentX(CENTER_ALIGNMENT);
       setLayout(new BoxLayout(getContentPane(), BoxLayout.PAGE_AXIS));
       Dimension ScreenSize = Toolkit.getDefaultToolkit().getScreenSize();
-      height = ScreenSize.getHeight();
-      add(Box.createRigidArea(new Dimension(0, (int) height / 2)));
+      heightWindow = ScreenSize.getHeight();
+      add(Box.createRigidArea(new Dimension(0, (int) heightWindow / 2)));
       add(Label);
       add(NumbersText);
       add(Enter);
@@ -57,7 +58,7 @@ public class Main {
     }
   }
   static class JSortFrame extends JFrame {
-    boolean sort = false; 
+
     JSortFrame(int numbers) {
       super();
       setExtendedState(JFrame.MAXIMIZED_BOTH);
@@ -78,18 +79,17 @@ public class Main {
         public void actionPerformed(ActionEvent e) {
           if (SleepText.getText().equals("")) sleep = 500;
           else sleep = Integer.parseInt(SleepText.getText()) * 1000;
-          if (sort) qsortM(0, NumbersButtons.length - 1);
-          else qsortB(0, NumbersButtons.length - 1);
+          qsort(0, NumbersButtons.length - 1, sort);
           sort = true;
         }
       });
-      RightPanel.add(Box.createRigidArea(new Dimension(0, (int) height / 2)));
+      RightPanel.add(Box.createRigidArea(new Dimension(0, (int) heightWindow / 2)));
       RightPanel.add(Sort);
       RightPanel.add(Reset);
       RightPanel.add(new JLabel("Enter speed show sort [1,30]"));
       RightPanel.add(new JLabel("int (default 0.5s)"));
       RightPanel.add(SleepText);
-      RightPanel.add(Box.createRigidArea(new Dimension(0, (int) height / 2)));
+      RightPanel.add(Box.createRigidArea(new Dimension(0, (int) heightWindow / 2)));
       add(RightPanel, BorderLayout.EAST);
       // Создание центрального меню
       NumbersButtons = new JButton[numbers];
@@ -117,7 +117,7 @@ public class Main {
       setVisible(true);
     }
   }
-  private static void qsortB(final int left, final int right) {
+  private static synchronized void qsort(final int left, final int right, final boolean sort) {
     SwingWorker < Boolean, Integer > Worker = new SwingWorker < Boolean, Integer > () {
       @Override
       protected Boolean doInBackground() throws Exception {
@@ -125,10 +125,13 @@ public class Main {
         int r = right;
         int pivot = Integer.parseInt(NumbersButtons[(left + right) / 2].getText());
         while (l <= r) {
-          while (Integer.parseInt(NumbersButtons[l].getText()) > pivot) l++;
-          while (Integer.parseInt(NumbersButtons[r].getText()) < pivot) r--;
+          while (((sort == true) && (Integer.parseInt(NumbersButtons[l].getText()) < pivot)) ||
+            ((sort == false) && (Integer.parseInt(NumbersButtons[l].getText()) > pivot))) l++;
+          while (((sort == true) && (Integer.parseInt(NumbersButtons[r].getText()) > pivot)) ||
+            ((sort == false) && (Integer.parseInt(NumbersButtons[r].getText()) < pivot))) r--;
           if (l <= r) {
-            if (Integer.parseInt(NumbersButtons[l].getText()) < Integer.parseInt(NumbersButtons[r].getText())) {
+            if (((sort == true) && (Integer.parseInt(NumbersButtons[l].getText()) > Integer.parseInt(NumbersButtons[r].getText()))) ||
+              ((sort == false) && (Integer.parseInt(NumbersButtons[l].getText()) < Integer.parseInt(NumbersButtons[r].getText())))) {
               publish(l);
               publish(r);
               Thread.sleep(sleep);
@@ -138,41 +141,8 @@ public class Main {
             r--;
           }
         }
-        if (left < r) qsortB(left, r);
-        if (l < right) qsortB(l, right);
-        return true;
-      }
-      protected void process(List < Integer > chunks) {
-        String s = NumbersButtons[chunks.get(chunks.size() - 1)].getText();
-        NumbersButtons[chunks.get(chunks.size() - 1)].setText(NumbersButtons[chunks.get(chunks.size() - 2)].getText());
-        NumbersButtons[chunks.get(chunks.size() - 2)].setText(s);
-      }
-    };
-    Worker.execute();
-  }
-  private static void qsortM(final int left, final int right) {
-    SwingWorker < Boolean, Integer > Worker = new SwingWorker < Boolean, Integer > () {
-      @Override
-      protected Boolean doInBackground() throws Exception {
-        int l = left;
-        int r = right;
-        int pivot = Integer.parseInt(NumbersButtons[(left + right) / 2].getText());
-        while (l <= r) {
-          while (Integer.parseInt(NumbersButtons[l].getText()) < pivot) l++;
-          while (Integer.parseInt(NumbersButtons[r].getText()) > pivot) r--;
-          if (l <= r) {
-            if (Integer.parseInt(NumbersButtons[l].getText()) > Integer.parseInt(NumbersButtons[r].getText())) {
-              publish(l);
-              publish(r);
-              Thread.sleep(sleep);
-              getState();
-            }
-            l++;
-            r--;
-          }
-        }
-        if (left < r) qsortM(left, r);
-        if (l < right) qsortM(l, right);
+        if (left < r) qsort(left, r, sort);
+        if (l < right) qsort(l, right, sort);
         return true;
       }
       protected void process(List < Integer > chunks) {
